@@ -82,7 +82,8 @@ function initAutoHeight( e, opts ) {
         
         // #50; remove special attributes from cloned content
         clone.removeAttr( 'id name rel' ).find( '[id],[name],[rel]' ).removeAttr( 'id name rel' );
-
+        // bonline/activities#2246 remove video iframe from cloned content
+        clone.find("iframe, embed").remove();
         clone.css({
             position: 'static',
             visibility: 'hidden',

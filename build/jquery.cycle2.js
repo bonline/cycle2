@@ -1,3 +1,4 @@
+define(['jquery'], function (jQuery) {
 /*!
 * jQuery Cycle2; version: 2.1.6 build: 20141007
 * http://jquery.malsup.com/cycle2/
@@ -772,7 +773,8 @@ function initAutoHeight( e, opts ) {
         
         // #50; remove special attributes from cloned content
         clone.removeAttr( 'id name rel' ).find( '[id],[name],[rel]' ).removeAttr( 'id name rel' );
-
+        // bonline/activities#2246 remove video iframe from cloned content
+        clone.find("iframe, embed").remove();
         clone.css({
             position: 'static',
             visibility: 'hidden',
@@ -1545,3 +1547,4 @@ $.extend($.fn.cycle.API, {
 });    
 
 })(jQuery);
+});
