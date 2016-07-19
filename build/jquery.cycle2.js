@@ -5,7 +5,102 @@ define(['jquery'], function (jQuery) {
 * Copyright (c) 2014 M. Alsup; Dual licensed: MIT/GPL
 */
 
+    ;( function ( factory ) {
+        factory( jQuery );
+    }( function ( $ ){
+      $.fn.addBack = $.fn.addBack || $.fn.andSelf;
+
+      $.fn.extend({
+
+        actual : function ( method, options ){
+          // check if the jQuery method exist
+          if( !this[ method ]){
+            throw '$.actual => The jQuery method "' + method + '" you called does not exist';
+          }
+
+          var defaults = {
+            absolute      : false,
+            clone         : false,
+            includeMargin : false,
+            display       : 'block'
+          };
+
+          var configs = $.extend( defaults, options );
+
+          var $target = this.eq( 0 );
+          var fix, restore;
+
+          if( configs.clone === true ){
+            fix = function (){
+              var style = 'position: absolute !important; top: -1000 !important; ';
+
+              // this is useful with css3pie
+              $target = $target.
+                clone().
+                attr( 'style', style ).
+                appendTo( 'body' );
+            };
+
+            restore = function (){
+              // remove DOM element after getting the width
+              $target.remove();
+            };
+          }else{
+            var tmp   = [];
+            var style = '';
+            var $hidden;
+
+            fix = function (){
+              // get all hidden parents
+              $hidden = $target.parents().addBack().filter( ':hidden' );
+              style   += 'visibility: hidden !important; display: ' + configs.display + ' !important; ';
+
+              if( configs.absolute === true ) style += 'position: absolute !important; ';
+
+              // save the origin style props
+              // set the hidden el css to be got the actual value later
+              $hidden.each( function (){
+                // Save original style. If no style was set, attr() returns undefined
+                var $this     = $( this );
+                var thisStyle = $this.attr( 'style' );
+
+                tmp.push( thisStyle );
+                // Retain as much of the original style as possible, if there is one
+                $this.attr( 'style', thisStyle ? thisStyle + ';' + style : style );
+              });
+            };
+
+            restore = function (){
+              // restore origin style values
+              $hidden.each( function ( i ){
+                var $this = $( this );
+                var _tmp  = tmp[ i ];
+
+                if( _tmp === undefined ){
+                  $this.removeAttr( 'style' );
+                }else{
+                  $this.attr( 'style', _tmp );
+                }
+              });
+            };
+          }
+
+          fix();
+          // get the actual value with user specific methed
+          // it can be 'width', 'height', 'outerWidth', 'innerWidth'... etc
+          // configs.includeMargin only works for 'outerWidth' and 'outerHeight'
+          var actual = /(outer)/.test( method ) ?
+            $target[ method ]( configs.includeMargin ) :
+            $target[ method ]();
+
+          restore();
+          // IMPORTANT, this plugin only return the value of the first element
+          return actual;
+        }
+      });
+    }));
 /* Cycle2 core engine */
+
 ;(function($) {
 "use strict";
 
@@ -732,6 +827,7 @@ $(document).on( 'cycle-initialized', function( e, opts ) {
         };
 
         $(window).on( 'resize orientationchange', opts._autoHeightOnResize );
+        $(document).on( 'enablebonline disablebonline', opts._autoHeightOnResize );
     }
 
     setTimeout( onResize, 30 );
@@ -788,15 +884,24 @@ function initAutoHeight( e, opts ) {
 
 function calcSentinelIndex( e, opts ) {
     var index = 0, max = -1;
-
+    var isResponsiveVertically = opts.container.is(".responsive-vertically");
     // calculate tallest slide index
     opts.slides.each(function(i) {
-        var h = $(this).height();
+        var h;
+        if (isResponsiveVertically) {
+            var cta_max_height = $(this).find(".single-carousel-content").actual("outerHeight");
+            var cta_content_max_height = $(this).find(".business-deal").actual("outerHeight");
+            var slide_height = $(this).actual("height");
+            h = Math.max(slide_height, cta_max_height, cta_content_max_height);
+        }else{
+            h = $(this).height();
+        }
         if ( h > max ) {
             max = h;
             index = i;
         }
     });
+    isResponsiveVertically && opts.container.height( max );
     return index;
 }
 
@@ -808,6 +913,7 @@ function onBefore( e, opts, outgoing, incoming, forward ) {
 function onDestroy( e, opts ) {
     if ( opts._autoHeightOnResize ) {
         $(window).off( 'resize orientationchange', opts._autoHeightOnResize );
+        $(document).off( 'enablebonline disablebonline', opts._autoHeightOnResize );
         opts._autoHeightOnResize = null;
     }
     opts.container.off( 'cycle-slide-added cycle-slide-removed', initAutoHeight );
